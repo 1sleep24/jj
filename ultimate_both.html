@@ -1,0 +1,1383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>2-Video/GIF Tournament — Fixed Auto-Save</title>
+<link rel="stylesheet" href="data:,"/>
+<style>
+  :root {
+    --bg: #0b0b0c;
+    --panel: #111;
+    --muted: #9aa0a6;
+    --accent: #0ea5a8;
+    --card: #161616;
+    --btn: #1f8f8f;
+    --left-color: #e74c3c;
+    --right-color: #27ae60;
+    --save-btn: #e67e22;
+    --load-btn: #27ae60;
+  }
+  
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow: hidden;
+  }
+  
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 8px;
+    overflow: hidden;
+  }
+  
+  header {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 8px;
+  }
+  
+  h1 {
+    margin: 0 0 4px 0;
+    font-size: 1.2rem;
+    text-align: center;
+  }
+  
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin: 0;
+  }
+  
+  .panel {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  
+  .btn {
+    background: var(--btn);
+    border: none;
+    padding: 12px 16px;
+    border-radius: 10px;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+    width: 100%;
+    margin: 4px 0;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  
+  .btn:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+  
+  .btn.ghost {
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.1);
+  }
+  
+  .btn.left {
+    background: var(--left-color);
+  }
+  
+  .btn.right {
+    background: var(--right-color);
+  }
+  
+  .btn.save {
+    background: var(--save-btn);
+  }
+  
+  .btn.load {
+    background: var(--load-btn);
+  }
+  
+  .btn-row {
+    display: flex;
+    gap: 6px;
+    margin: 6px 0;
+  }
+  
+  .btn-row .btn {
+    flex: 1;
+    margin: 0;
+  }
+  
+  /* Comparison Area - COMPACT */
+  .comparison-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+  }
+  
+  .videos-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    flex: 1;
+    margin: 8px 0;
+    min-height: 0;
+    max-height: 60vh;
+  }
+  
+  .video-card {
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    min-height: 0;
+  }
+  
+  .video-card.selected {
+    box-shadow: 0 0 0 3px var(--accent), 0 4px 15px rgba(14, 165, 168, 0.4);
+  }
+  
+  .media-container {
+    width: 100%;
+    height: 30vh;
+    max-height: 200px;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  
+  .media-container video,
+  .media-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+    pointer-events: auto;
+  }
+  
+  .video-info {
+    padding: 8px;
+    text-align: center;
+    flex: 0 0 auto;
+  }
+  
+  .video-name {
+    font-weight: 600;
+    margin-bottom: 2px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .video-stats {
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  
+  .file-type-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 0.6rem;
+    font-weight: bold;
+    background: rgba(0,0,0,0.7);
+    z-index: 5;
+  }
+  
+  .file-type-badge.video {
+    color: #3498db;
+    border: 1px solid #3498db;
+  }
+  
+  .file-type-badge.gif {
+    color: #9b59b6;
+    border: 1px solid #9b59b6;
+  }
+  
+  .video-label {
+    position: absolute;
+    top: 8px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.7rem;
+    z-index: 5;
+  }
+  
+  .video-label.left {
+    left: 8px;
+    background: var(--left-color);
+  }
+  
+  .video-label.right {
+    right: 8px;
+    background: var(--right-color);
+  }
+  
+  /* Selection Area - SEPARATE from media controls */
+  .selection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 10;
+    padding: 8px;
+  }
+  
+  .selection-area {
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 20px;
+    padding: 12px;
+    display: flex;
+    gap: 20px;
+    pointer-events: auto;
+    backdrop-filter: blur(10px);
+  }
+  
+  .select-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    transition: transform 0.1s, box-shadow 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .select-btn:active {
+    transform: scale(0.9);
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  }
+  
+  .select-btn.left {
+    background: var(--left-color);
+    color: white;
+  }
+  
+  .select-btn.right {
+    background: var(--right-color);
+    color: white;
+  }
+  
+  
+  .select-btn.both {
+    background: var(--accent);
+    color: white;
+  }
+  .select-btn.both:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Progress */
+  .progress-container {
+    margin: 12px 0;
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.3s ease;
+    border-radius: 3px;
+  }
+  
+  .progress-text {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  
+  /* Instructions */
+  .instructions {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin: 8px 0;
+    padding: 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+  }
+  
+  .instruction-icons {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin: 6px 0;
+    font-size: 1.2rem;
+  }
+  
+  /* Choice indicator */
+  .choice-indicator {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: bold;
+    margin: 6px 0;
+    min-height: 1.2em;
+    padding: 4px;
+    border-radius: 6px;
+  }
+  
+  .choice-left { 
+    color: var(--left-color);
+    background: rgba(231, 76, 60, 0.1);
+  }
+  
+  .choice-right { 
+    color: var(--right-color);
+    background: rgba(39, 174, 96, 0.1);
+  }
+
+  /* Format filter buttons */
+  .format-filters {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0;
+    justify-content: center;
+  }
+  
+  .format-btn {
+    padding: 6px 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .format-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  /* Auto-save indicator */
+  .auto-save-indicator {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .videos-grid {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+    
+    .media-container {
+      height: 25vh;
+    }
+    
+    .selection-area {
+      gap: 15px;
+      padding: 10px;
+    }
+    
+    .select-btn {
+      width: 55px;
+      height: 55px;
+      font-size: 1.3rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .container {
+      padding: 6px;
+    }
+    
+    h1 {
+      font-size: 1.1rem;
+    }
+    
+    .btn {
+      padding: 10px 14px;
+      font-size: 0.8rem;
+    }
+    
+    .media-container {
+      height: 22vh;
+    }
+    
+    .selection-area {
+      gap: 12px;
+    }
+    
+    .select-btn {
+      width: 50px;
+      height: 50px;
+    }
+  }
+
+  /* Config Panel */
+  .config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 8px 0;
+  }
+  
+  .config-item {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .config-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  
+  .config-input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 8px;
+    color: white;
+    font-size: 0.9rem;
+  }
+  
+  .radio-group {
+    display: flex;
+    gap: 12px;
+    margin: 6px 0;
+  }
+  
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+  }
+  
+  .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0;
+  }
+  
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+  }
+  
+  /* Save Section */
+  .save-section {
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 12px 0;
+    border-left: 3px solid var(--accent);
+  }
+  
+  .save-title {
+    margin: 0 0 6px 0;
+    font-size: 1rem;
+    color: var(--accent);
+  }
+  
+  /* Notifications */
+  .notification {
+    position: fixed;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-15px);
+    background: var(--accent);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    max-width: 90%;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+  
+  .notification.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  
+  /* Hidden file input */
+  .hidden-input {
+    display: none;
+  }
+  
+  /* Utility classes */
+  .text-center { text-align: center; }
+  .mb-4 { margin-bottom: 4px; }
+  .mt-4 { margin-top: 4px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Config Screen -->
+  <div id="configScreen">
+    <header>
+      <h1>🎬 Video & GIF Tournament</h1>
+      <p class="subtitle">Supports both videos and GIFs - watch both, then choose</p>
+    </header>
+    
+    <div class="panel">
+      <div class="config-grid">
+        <div class="config-item">
+          <label class="config-label">Tournament Mode</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="mode" value="optimized" checked>
+              Optimized
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="mode" value="fixed">
+              Fixed
+            </label>
+          </div>
+        </div>
+        
+        <div class="config-item" id="fixedControls" style="display: none;">
+          <label class="config-label">Comparisons</label>
+          <input type="number" id="fixedRounds" class="config-input" value="150" min="1">
+        </div>
+        
+        <div class="config-item">
+          <label class="config-label">Top Winners</label>
+          <input type="number" id="topN" class="config-input" value="50" min="1" max="100">
+        </div>
+      </div>
+      
+      <div class="checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoSave" checked>
+          Auto-save every 20 choices (silent)
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoPlay" checked>
+          Autoplay media (videos muted)
+        </label>
+      </div>
+
+      <div class="format-filters">
+        <button class="format-btn active" data-format="all">All Files</button>
+        <button class="format-btn" data-format="video">Videos Only</button>
+        <button class="format-btn" data-format="gif">GIFs Only</button>
+      </div>
+      
+      <div class="btn-row">
+        <label class="btn ghost">
+          📁 Choose Videos/GIFs
+          <input id="picker" type="file" accept="video/*,image/gif" multiple class="hidden-input">
+        </label>
+        <button id="start" class="btn">Start Tournament</button>
+      </div>
+      
+      <div class="progress-container">
+        <div class="progress-text">
+          <span id="status">Files: 0 (0 videos, 0 GIFs)</span>
+          <span id="estRounds">~200 comparisons</span>
+          <span id="estTime">~30min</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="save-section">
+      <h3 class="save-title">💾 Save & Load</h3>
+      <p class="subtitle mb-4">Auto-saves work silently in background</p>
+      <div class="btn-row">
+        <button id="saveProgress" class="btn save" disabled>Download Save File</button>
+        <button id="loadProgress" class="btn load">Load From File</button>
+        <button id="loadAutoSave" class="btn ghost">Load Auto-Save</button>
+        <input type="file" id="loadFile" accept=".json" class="hidden-input">
+      </div>
+      <p class="subtext text-center mt-4" id="lastSave">No saves yet</p>
+      <p class="auto-save-indicator" id="autoSaveStatus">Auto-save: Ready</p>
+    </div>
+  </div>
+  
+  <!-- Game Screen -->
+  <div id="gameScreen" class="hidden">
+    <header>
+      <h1>Comparison <span id="roundNum">1</span></h1>
+      <p class="subtitle">Watch both, then select your favorite</p>
+    </header>
+    
+    <div class="comparison-container">
+      <div class="instructions">
+        <div class="instruction-icons">
+          <span>👈</span>
+          <span>👉</span>
+        </div>
+        <p>Use buttons below to choose after watching</p>
+      </div>
+      
+      <div class="choice-indicator" id="choiceIndicator"></div>
+      
+      <div class="videos-grid" id="videosGrid">
+        <!-- Media cards will be inserted here -->
+      </div>
+      
+      <!-- Separate selection area that doesn't interfere with media controls -->
+      <div class="selection-overlay">
+        <div class="selection-area">
+          <button class="select-btn left" id="chooseLeft">👈</button>
+          <button class="select-btn both" id="chooseBoth">🤝</button>
+          <button class="select-btn right" id="chooseRight">👉</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-text">
+        <span id="progressText">0%</span>
+        <span id="roundsProgress">0/0 comparisons</span>
+        <span id="timeRemaining">-- left</span>
+      </div>
+    </div>
+    
+    <div class="btn-row">
+      <button id="saveProgressInGame" class="btn save">💾 Download Save</button>
+      <button id="quickSave" class="btn ghost">⚡ Quick Auto-Save</button>
+    </div>
+    <p class="auto-save-indicator" id="autoSaveStatusGame">Auto-save: Ready</p>
+  </div>
+  
+  <!-- Leaderboard Screen -->
+  <div id="leaderScreen" class="panel hidden">
+    <h2 class="text-center">🏆 Top <span id="topCount">50</span> Files</h2>
+    <div id="leaders"></div>
+  </div>
+</div>
+
+<!-- JSZip from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+class FixedAutoSaveTournament {
+  constructor() {
+    this.files = [];
+    this.mode = 'optimized';
+    this.roundsDone = 0;
+    this.maxRounds = 150;
+    this.topN = 50;
+    this.currentPair = [];
+    this.sessionStartTime = 0;
+    this.roundTimes = [];
+    this.autoSaveCounter = 0;
+    this.currentFormatFilter = 'all';
+    this.autoSaveKey = 'mediaTournamentAutoSave';
+    
+    this.initializeElements();
+    this.bindEvents();
+    this.updateStatus();
+    this.checkForAutoSave();
+  }
+  
+  initializeElements() {
+    // Screens
+    this.configScreen = document.getElementById('configScreen');
+    this.gameScreen = document.getElementById('gameScreen');
+    this.leaderScreen = document.getElementById('leaderScreen');
+    
+    // Config elements
+    this.picker = document.getElementById('picker');
+    this.startBtn = document.getElementById('start');
+    this.status = document.getElementById('status');
+    this.fixedControls = document.getElementById('fixedControls');
+    this.fixedRoundsInput = document.getElementById('fixedRounds');
+    this.topNInput = document.getElementById('topN');
+    this.estRounds = document.getElementById('estRounds');
+    this.estTime = document.getElementById('estTime');
+    
+    // Game elements
+    this.videosGrid = document.getElementById('videosGrid');
+    this.roundNum = document.getElementById('roundNum');
+    this.progressFill = document.getElementById('progressFill');
+    this.progressText = document.getElementById('progressText');
+    this.roundsProgress = document.getElementById('roundsProgress');
+    this.timeRemaining = document.getElementById('timeRemaining');
+    this.chooseLeft = document.getElementById('chooseLeft');
+    this.chooseRight = document.getElementById('chooseRight');
+    this.chooseBoth = document.getElementById('chooseBoth');
+    this.choiceIndicator = document.getElementById('choiceIndicator');
+    
+    // Save/load
+    this.saveProgress = document.getElementById('saveProgress');
+    this.loadProgress = document.getElementById('loadProgress');
+    this.loadAutoSave = document.getElementById('loadAutoSave');
+    this.loadFile = document.getElementById('loadFile');
+    this.saveProgressInGame = document.getElementById('saveProgressInGame');
+    this.quickSave = document.getElementById('quickSave');
+    this.lastSave = document.getElementById('lastSave');
+    this.autoSaveStatus = document.getElementById('autoSaveStatus');
+    this.autoSaveStatusGame = document.getElementById('autoSaveStatusGame');
+    
+    // Options
+    this.autoSave = document.getElementById('autoSave');
+    this.autoPlay = document.getElementById('autoPlay');
+    
+    // Format filters
+    this.formatButtons = document.querySelectorAll('.format-btn');
+    
+    // Leaderboard
+    this.topCount = document.getElementById('topCount');
+    this.leaders = document.getElementById('leaders');
+  }
+  
+  bindEvents() {
+    // Config events
+    this.picker.addEventListener('change', (e) => this.handleFileSelect(e));
+    this.startBtn.addEventListener('click', () => this.startTournament());
+    
+    document.querySelectorAll('input[name="mode"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        this.mode = e.target.value;
+        this.fixedControls.style.display = this.mode === 'fixed' ? 'block' : 'none';
+        this.updateStatus();
+      });
+    });
+    
+    // Format filter events
+    this.formatButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        this.formatButtons.forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        this.currentFormatFilter = e.target.dataset.format;
+        this.updateStatus();
+      });
+    });
+    
+    // Game events - ONLY the dedicated buttons trigger selection
+    this.chooseLeft.addEventListener('click', () => this.handleChoice('left'));
+    this.chooseRight.addEventListener('click', () => this.handleChoice('right'));
+    this.chooseBoth.addEventListener('click', () => this.handleChoice('both'));
+    this.chooseRight.addEventListener('click', () => this.handleChoice('right'));
+    
+    // Save/load events
+    this.saveProgress.addEventListener('click', () => this.downloadSaveFile());
+    this.loadProgress.addEventListener('click', () => this.loadTournamentProgress());
+    this.loadAutoSave.addEventListener('click', () => this.loadFromAutoSave());
+    this.saveProgressInGame.addEventListener('click', () => this.downloadSaveFile());
+    this.quickSave.addEventListener('click', () => this.quickAutoSave());
+    this.loadFile.addEventListener('change', (e) => this.handleLoadFile(e));
+  }
+  
+  checkForAutoSave() {
+    try {
+      const autoSaveData = localStorage.getItem(this.autoSaveKey);
+      if (autoSaveData) {
+        const saveData = JSON.parse(autoSaveData);
+        const autoSaveTime = new Date(saveData.timestamp).toLocaleString();
+        this.autoSaveStatus.textContent = `Auto-save available from ${autoSaveTime}`;
+        this.autoSaveStatus.style.color = '#27ae60';
+      } else {
+        this.autoSaveStatus.textContent = 'No auto-save found';
+        this.autoSaveStatus.style.color = 'var(--muted)';
+      }
+    } catch (error) {
+      console.error('Error checking auto-save:', error);
+      this.autoSaveStatus.textContent = 'Error checking auto-save';
+      this.autoSaveStatus.style.color = '#e74c3c';
+    }
+  }
+  
+  updateAutoSaveStatus(message, isError = false) {
+    const statusElement = this.gameScreen.classList.contains('hidden') 
+      ? this.autoSaveStatus 
+      : this.autoSaveStatusGame;
+    
+    statusElement.textContent = `Auto-save: ${message}`;
+    statusElement.style.color = isError ? '#e74c3c' : '#27ae60';
+    
+    // Reset color after 3 seconds if it's a temporary message
+    if (!isError && message !== 'Ready') {
+      setTimeout(() => {
+        statusElement.style.color = 'var(--muted)';
+        statusElement.textContent = 'Auto-save: Ready';
+      }, 3000);
+    }
+  }
+  
+  handleFileSelect(e) {
+    const selected = Array.from(e.target.files).filter(f => 
+      f.type.startsWith('video/') || f.type === 'image/gif'
+    );
+    
+    const unsupportedFiles = Array.from(e.target.files).filter(f => 
+      !f.type.startsWith('video/') && f.type !== 'image/gif'
+    );
+    
+    if (unsupportedFiles.length > 0) {
+      this.showNotification(`Skipped ${unsupportedFiles.length} unsupported files`);
+    }
+    
+    selected.forEach(file => {
+      const url = URL.createObjectURL(file);
+      const fileType = file.type.startsWith('video/') ? 'video' : 'gif';
+      
+      this.files.push({
+        file: file,
+        fileType: fileType,
+        score: 0,
+        seenCount: 0,
+        wins: 0,
+        losses: 0,
+        url: url
+      });
+    });
+    
+    this.updateStatus();
+  }
+  
+  getFilteredFiles() {
+    if (this.currentFormatFilter === 'all') return this.files;
+    return this.files.filter(f => f.fileType === this.currentFormatFilter);
+  }
+  
+  updateStatus() {
+    const filteredFiles = this.getFilteredFiles();
+    const videoCount = filteredFiles.filter(f => f.fileType === 'video').length;
+    const gifCount = filteredFiles.filter(f => f.fileType === 'gif').length;
+    
+    this.status.textContent = `Files: ${filteredFiles.length} (${videoCount} videos, ${gifCount} GIFs)`;
+    
+    if (filteredFiles.length > 0) {
+      const totalRounds = this.calculateOptimalRounds();
+      this.estRounds.textContent = `~${totalRounds} comparisons`;
+      this.estTime.textContent = `~${this.formatTime(totalRounds * 10)}`;
+    }
+    
+    this.saveProgress.disabled = filteredFiles.length === 0 || this.roundsDone === 0;
+  }
+  
+  calculateOptimalRounds() {
+    const count = this.getFilteredFiles().length;
+    if (count <= 50) return Math.max(100, count * 3);
+    if (count <= 100) return Math.ceil(count * 2.5);
+    if (count <= 200) return Math.ceil(count * 2);
+    return Math.ceil(count * 1.5);
+  }
+  
+  formatTime(seconds) {
+    const minutes = Math.ceil(seconds / 60);
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  }
+  
+  startTournament() {
+    const filteredFiles = this.getFilteredFiles();
+    if (filteredFiles.length < 2) {
+      this.showNotification('Please select at least 2 files (videos or GIFs)');
+      return;
+    }
+    
+    this.topN = Math.max(1, Math.min(filteredFiles.length, parseInt(this.topNInput.value) || 50));
+    this.maxRounds = Math.max(1, parseInt(this.fixedRoundsInput.value) || 150);
+    
+    // Reset scores for filtered files
+    filteredFiles.forEach(file => {
+      file.score = 0;
+      file.seenCount = 0;
+      file.wins = 0;
+      file.losses = 0;
+    });
+    
+    this.roundsDone = 0;
+    this.sessionStartTime = Date.now();
+    this.roundTimes = [];
+    this.autoSaveCounter = 0;
+    
+    this.configScreen.classList.add('hidden');
+    this.gameScreen.classList.remove('hidden');
+    this.leaderScreen.classList.remove('hidden');
+    
+    this.nextComparison();
+  }
+  
+  nextComparison() {
+    const filteredFiles = this.getFilteredFiles();
+    const totalRounds = this.mode === 'fixed' ? this.maxRounds : this.calculateOptimalRounds();
+    
+    if (this.roundsDone >= totalRounds) {
+      this.finishTournament();
+      return;
+    }
+    
+    this.roundNum.textContent = this.roundsDone + 1;
+    this.updateProgressBar();
+    this.choiceIndicator.textContent = '';
+    
+    // Get two different random files from filtered list
+    const pair = this.pickRandomPair(filteredFiles);
+    this.currentPair = pair;
+    
+    this.showMediaPair(pair, filteredFiles);
+  }
+  
+  pickRandomPair(filteredFiles) {
+    if (filteredFiles.length < 2) return [0, 1];
+    
+    let first, second;
+    do {
+      first = Math.floor(Math.random() * filteredFiles.length);
+      second = Math.floor(Math.random() * filteredFiles.length);
+    } while (first === second);
+    
+    return [first, second];
+  }
+  
+  showMediaPair(pair, filteredFiles) {
+    this.videosGrid.innerHTML = '';
+    
+    const [leftIndex, rightIndex] = pair;
+    const leftFile = filteredFiles[leftIndex];
+    const rightFile = filteredFiles[rightIndex];
+    
+    // Left media card
+    const leftCard = this.createMediaCard(leftFile, 'left', leftIndex);
+    // Right media card
+    const rightCard = this.createMediaCard(rightFile, 'right', rightIndex);
+    
+    this.videosGrid.appendChild(leftCard);
+    this.videosGrid.appendChild(rightCard);
+  }
+  
+  createMediaCard(file, side, index) {
+    const card = document.createElement('div');
+    card.className = `video-card`;
+    card.dataset.index = index;
+    card.dataset.side = side;
+    
+    const label = document.createElement('div');
+    label.className = `video-label ${side}`;
+    label.textContent = side.toUpperCase();
+    
+    const typeBadge = document.createElement('div');
+    typeBadge.className = `file-type-badge ${file.fileType}`;
+    typeBadge.textContent = file.fileType.toUpperCase();
+    
+    const mediaContainer = document.createElement('div');
+    mediaContainer.className = 'media-container';
+    
+    let mediaElement;
+    if (file.fileType === 'video') {
+      mediaElement = document.createElement('video');
+      mediaElement.src = file.url;
+      mediaElement.playsInline = true;
+      mediaElement.controls = true;
+      mediaElement.muted = this.autoPlay.checked;
+      
+      if (this.autoPlay.checked) {
+        mediaElement.autoplay = true;
+        mediaElement.loop = true;
+      }
+    } else { // GIF
+      mediaElement = document.createElement('img');
+      mediaElement.src = file.url;
+      mediaElement.alt = file.file.name;
+    }
+    
+    mediaContainer.appendChild(mediaElement);
+    
+    const info = document.createElement('div');
+    info.className = 'video-info';
+    info.innerHTML = `
+      <div class="video-name">${file.file.name}</div>
+      <div class="video-stats">Score: ${file.score}</div>
+    `;
+    
+    card.appendChild(label);
+    card.appendChild(typeBadge);
+    card.appendChild(mediaContainer);
+    card.appendChild(info);
+    
+    return card;
+  }
+  
+  handleChoice(chosenSide) {
+    if (this.currentPair.length !== 2) return;
+    
+    const filteredFiles = this.getFilteredFiles();
+    const [leftIndex, rightIndex] = this.currentPair;
+    
+    if (chosenSide === 'both') {
+      filteredFiles[leftIndex].score += 0.5;
+      filteredFiles[rightIndex].score += 0.5;
+      filteredFiles[leftIndex].wins += 0.5;
+      filteredFiles[rightIndex].wins += 0.5;
+    } else {
+      const winnerIndex = chosenSide === 'left' ? leftIndex : rightIndex;
+      const loserIndex = chosenSide === 'left' ? rightIndex : leftIndex;
+      filteredFiles[winnerIndex].score += 1;
+      filteredFiles[winnerIndex].wins += 1;
+      filteredFiles[loserIndex].score -= 1;
+      filteredFiles[loserIndex].losses += 1;
+    }
+
+    filteredFiles[leftIndex].seenCount++;
+    filteredFiles[rightIndex].seenCount++;
+    this.roundsDone++;
+
+    this.showChoiceFeedback(chosenSide);
+
+    this.autoSaveCounter++;
+    if (this.autoSave.checked && this.autoSaveCounter >= 20) {
+      this.performAutoSave();
+      this.autoSaveCounter = 0;
+    }
+
+    const totalRounds = this.mode === 'fixed' ? this.maxRounds : this.calculateOptimalRounds();
+    if (this.roundsDone > totalRounds * 0.8) {
+      this.chooseBoth.disabled = true;
+    }
+
+    setTimeout(() => {
+      this.nextComparison();
+    }, 1500);
+  }
+  
+  performAutoSave() {
+    try {
+      const saveData = this.prepareSaveData();
+      localStorage.setItem(this.autoSaveKey, JSON.stringify(saveData));
+      this.updateAutoSaveStatus('Auto-saved successfully!');
+      this.lastSave.textContent = `Last auto-save: ${new Date().toLocaleTimeString()}`;
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+      this.updateAutoSaveStatus('Auto-save failed!', true);
+    }
+  }
+  
+  quickAutoSave() {
+    this.performAutoSave();
+    this.showNotification('Quick auto-save completed!');
+  }
+  
+  prepareSaveData() {
+    return {
+      files: this.files.map(f => ({
+        name: f.file.name,
+        size: f.file.size,
+        type: f.file.type,
+        fileType: f.fileType,
+        lastModified: f.file.lastModified,
+        score: f.score,
+        seenCount: f.seenCount,
+        wins: f.wins,
+        losses: f.losses,
+        url: f.url
+      })),
+      mode: this.mode,
+      roundsDone: this.roundsDone,
+      maxRounds: this.maxRounds,
+      topN: this.topN,
+      timestamp: new Date().toISOString(),
+      sessionStartTime: this.sessionStartTime,
+      roundTimes: this.roundTimes,
+      formatFilter: this.currentFormatFilter
+    };
+  }
+  
+  downloadSaveFile() {
+    const filteredFiles = this.getFilteredFiles();
+    if (filteredFiles.length === 0) {
+      this.showNotification('No tournament data to save');
+      return;
+    }
+    
+    const saveData = this.prepareSaveData();
+    const blob = new Blob([JSON.stringify(saveData, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `media-tournament-save-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 100);
+    
+    this.lastSave.textContent = `Last download: ${new Date().toLocaleTimeString()}`;
+    this.showNotification('Save file downloaded!');
+  }
+  
+  showChoiceFeedback(chosenSide) {
+    const cards = document.querySelectorAll('.video-card');
+    cards.forEach(card => {
+      card.classList.remove('selected');
+      if (chosenSide === 'both' || card.dataset.side === chosenSide) {
+        card.classList.add('selected');
+      }
+    });
+    
+    this.choiceIndicator.textContent = chosenSide === 'both'
+      ? 'You chose BOTH 🤝'
+      : `You chose ${chosenSide.toUpperCase()}`;
+    this.choiceIndicator.className = `choice-indicator choice-${chosenSide}`;
+
+    const videos = document.querySelectorAll('video');
+    videos.forEach(video => {
+      video.pause();
+    });
+  }
+  
+  updateProgressBar() {
+    const filteredFiles = this.getFilteredFiles();
+    const totalRounds = this.mode === 'fixed' ? this.maxRounds : this.calculateOptimalRounds();
+    const progress = this.roundsDone / totalRounds;
+    
+    this.progressFill.style.width = `${Math.min(100, progress * 100)}%`;
+    this.progressText.textContent = `${Math.round(progress * 100)}%`;
+    this.roundsProgress.textContent = `${this.roundsDone}/${totalRounds} comparisons`;
+  }
+  
+  computeLeaders() {
+    const filteredFiles = this.getFilteredFiles();
+    const arr = filteredFiles.map((f, i) => ({
+      i, 
+      file: f,
+      score: f.score || 0, 
+      wins: f.wins || 0, 
+      losses: f.losses || 0
+    }));
+    
+    arr.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aRatio = a.wins / (a.wins + a.losses) || 0;
+      const bRatio = b.wins / (b.wins + b.losses) || 0;
+      return bRatio - aRatio;
+    });
+    
+    return arr.slice(0, this.topN);
+  }
+  
+  renderLeaderboard() {
+    this.leaders.innerHTML = '';
+    const leaders = this.computeLeaders();
+    this.topCount.textContent = this.topN;
+    
+    leaders.forEach(({i, file, score, wins, losses}, rank) => {
+      const leaderEl = document.createElement('div');
+      leaderEl.className = 'leader';
+      
+      let mediaElement;
+      if (file.fileType === 'video') {
+        mediaElement = document.createElement('video');
+        mediaElement.src = file.url;
+        mediaElement.playsInline = true;
+        mediaElement.muted = true;
+      } else {
+        mediaElement = document.createElement('img');
+        mediaElement.src = file.url;
+        mediaElement.alt = file.file.name;
+      }
+      
+      const info = document.createElement('div');
+      info.className = 'leader-info';
+      info.innerHTML = `
+        <div class="leader-name">${rank + 1}. ${file.file.name}</div>
+        <div class="leader-stats">Score: ${score} | W/L: ${wins}/${losses}</div>
+        <div class="leader-stats">Type: ${file.fileType.toUpperCase()}</div>
+      `;
+      
+      leaderEl.appendChild(mediaElement);
+      leaderEl.appendChild(info);
+      this.leaders.appendChild(leaderEl);
+    });
+  }
+  
+  finishTournament() {
+    this.gameScreen.classList.add('hidden');
+    this.renderLeaderboard();
+    this.showNotification('Tournament completed!');
+  }
+  
+  loadFromAutoSave() {
+    try {
+      const autoSaveData = localStorage.getItem(this.autoSaveKey);
+      if (!autoSaveData) {
+        this.showNotification('No auto-save data found');
+        return;
+      }
+      
+      const saveData = JSON.parse(autoSaveData);
+      this.loadSaveData(saveData, 'Auto-save');
+      
+    } catch (error) {
+      console.error('Error loading auto-save:', error);
+      this.showNotification('Error loading auto-save data');
+    }
+  }
+  
+  loadTournamentProgress() {
+    this.loadFile.click();
+  }
+  
+  handleLoadFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const saveData = JSON.parse(event.target.result);
+        this.loadSaveData(saveData, 'File');
+      } catch (error) {
+        console.error('Error loading save:', error);
+        this.showNotification('Error loading save file');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+  
+  loadSaveData(saveData, source) {
+    if (this.files.length === 0) {
+      this.showNotification('Please select media files first');
+      return;
+    }
+    
+    // Match files and restore data
+    const fileMap = new Map();
+    this.files.forEach(f => {
+      fileMap.set(f.file.name + f.file.size, f);
+    });
+    
+    let matched = 0;
+    saveData.files.forEach(savedFile => {
+      const key = savedFile.name + savedFile.size;
+      if (fileMap.has(key)) {
+        const currentFile = fileMap.get(key);
+        currentFile.score = savedFile.score || 0;
+        currentFile.seenCount = savedFile.seenCount || 0;
+        currentFile.wins = savedFile.wins || 0;
+        currentFile.losses = savedFile.losses || 0;
+        matched++;
+      }
+    });
+    
+    if (matched === 0) {
+      this.showNotification('No matching files found');
+      return;
+    }
+    
+    // Restore tournament state
+    this.mode = saveData.mode || 'optimized';
+    this.roundsDone = saveData.roundsDone || 0;
+    this.maxRounds = saveData.maxRounds || 150;
+    this.topN = saveData.topN || 50;
+    this.sessionStartTime = saveData.sessionStartTime || Date.now();
+    this.roundTimes = saveData.roundTimes || [];
+    this.currentFormatFilter = saveData.formatFilter || 'all';
+    
+    // Update UI
+    document.querySelector(`input[name="mode"][value="${this.mode}"]`).checked = true;
+    this.fixedControls.style.display = this.mode === 'fixed' ? 'block' : 'none';
+    this.fixedRoundsInput.value = this.maxRounds;
+    this.topNInput.value = this.topN;
+    
+    // Update format filter buttons
+    this.formatButtons.forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.format === this.currentFormatFilter) {
+        btn.classList.add('active');
+      }
+    });
+    
+    // Start tournament
+    this.configScreen.classList.add('hidden');
+    this.gameScreen.classList.remove('hidden');
+    this.leaderScreen.classList.remove('hidden');
+    
+    this.updateStatus();
+    this.updateProgressBar();
+    this.renderLeaderboard();
+    this.nextComparison();
+    
+    this.showNotification(`${source} loaded! ${matched} files matched`);
+  }
+  
+  showNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => notification.classList.add('show'), 10);
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => document.body.removeChild(notification), 300);
+    }, 3000);
+  }
+}
+
+// Initialize the tournament when page loads
+document.addEventListener('DOMContentLoaded', () => {
+  new FixedAutoSaveTournament();
+});
+</script>
+</body>
+</html>
