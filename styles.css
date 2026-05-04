@@ -300,6 +300,10 @@ input {
   margin-top: 18px;
 }
 
+.setup-actions {
+  margin-top: 12px;
+}
+
 .primary-button,
 .secondary-button {
   padding: 14px 18px;
@@ -318,6 +322,12 @@ input {
   color: var(--text);
   background: rgba(255, 255, 255, 0.76);
   border-color: var(--line);
+}
+
+.secondary-button:disabled,
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .results-block {
@@ -390,6 +400,22 @@ input {
   background: rgba(70, 194, 136, 0.14);
 }
 
+.ranking-item-simple {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
+.ranking-item-simple .ranking-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ranking-item-simple .ranking-tag {
+  margin-top: 0;
+  align-self: center;
+}
+
 @media (max-width: 820px) {
   .setup-grid,
   .stats,
@@ -427,6 +453,15 @@ input {
 
   .ranking-item {
     grid-template-columns: 38px 74px minmax(0, 1fr);
+  }
+
+  .ranking-item-simple {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .ranking-item-simple .ranking-copy {
+    flex-direction: column;
+    align-items: start;
   }
 
   .ranking-image {

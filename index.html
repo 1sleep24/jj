@@ -19,8 +19,8 @@
       <p class="eyebrow">Mobile-first GIF sorter</p>
       <h1>Pick the better GIF until your ranking is done.</h1>
       <p class="intro">
-        Load your GIFs, tap your favorite in each matchup, and the app builds a complete order from best to worst.
-        Your top picks stay at the top, so choosing the final 20 is easy.
+        Load your GIFs, tap your favorite in each matchup, and the app keeps an exact ranked shortlist of the GIFs
+        most likely to make your post. That means fewer comparisons and less time making your phone work.
       </p>
     </section>
 
@@ -43,15 +43,20 @@
         </label>
 
         <div class="field field-note">
-          <span>Why this works</span>
+          <span>Why this is faster</span>
           <p>
-            Instead of comparing every GIF to every other GIF, this uses a smarter insertion ranking flow,
-            so you get a full list with a lot fewer decisions.
+            This version focuses on building your exact top list instead of fully sorting the GIFs you are going to cut.
+            It also auto-saves on this device so you can refresh and resume if Safari gets sluggish.
           </p>
         </div>
       </div>
 
       <p class="status-message" id="setup-message">Waiting for your GIFs.</p>
+      <div class="actions setup-actions">
+        <button class="secondary-button hidden" id="resume-button" type="button">Resume saved session</button>
+        <button class="secondary-button hidden" id="clear-save-button" type="button">Clear saved session</button>
+      </div>
+      <p class="status-message" id="save-message"></p>
     </section>
 
     <section class="panel hidden" id="battle-panel">
@@ -62,15 +67,15 @@
 
       <div class="stats">
         <div class="stat">
-          <span class="stat-label">GIFs ranked</span>
+          <span class="stat-label" id="stat-primary-label">Shortlist</span>
           <strong id="ranked-count">0 / 0</strong>
         </div>
         <div class="stat">
-          <span class="stat-label">Comparisons</span>
+          <span class="stat-label" id="stat-secondary-label">Comparisons</span>
           <strong id="comparison-count">0</strong>
         </div>
         <div class="stat">
-          <span class="stat-label">Estimated total</span>
+          <span class="stat-label" id="stat-tertiary-label">Remaining GIFs</span>
           <strong id="estimated-total">0</strong>
         </div>
       </div>
@@ -104,13 +109,13 @@
 
     <section class="panel hidden" id="results-panel">
       <div class="panel-header">
-        <h2>3. Your ranking is ready</h2>
-        <p>The top list is the order to use in your post.</p>
+        <h2>3. Your shortlist is ready</h2>
+        <p>The keep list is already in posting order.</p>
       </div>
 
       <div class="results-actions">
         <button class="primary-button" id="copy-top-button" type="button">Copy top list</button>
-        <button class="secondary-button" id="copy-all-button" type="button">Copy full ranking</button>
+        <button class="secondary-button" id="copy-all-button" type="button">Copy cut list</button>
       </div>
 
       <div class="results-block">
@@ -123,24 +128,13 @@
 
       <div class="results-block">
         <div class="results-header">
-          <h3>Full ranking</h3>
-          <p>Best to worst, based on your choices.</p>
+          <h3 id="cut-list-heading">Trimmed away</h3>
+          <p>The GIFs below did not make the keep list. They are not fully ranked.</p>
         </div>
         <ol class="ranking-list full-list" id="full-list"></ol>
       </div>
     </section>
   </main>
-
-  <template id="ranking-item-template">
-    <li class="ranking-item">
-      <span class="ranking-number"></span>
-      <img class="ranking-image" alt="">
-      <div class="ranking-copy">
-        <span class="ranking-name"></span>
-        <span class="ranking-tag"></span>
-      </div>
-    </li>
-  </template>
 
   <script src="app.js"></script>
 </body>

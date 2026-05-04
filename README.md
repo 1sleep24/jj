@@ -8,9 +8,10 @@ This folder now contains two iPhone-friendly versions:
 ## What it does
 
 - Lets you choose your GIF files directly in the browser
-- Builds a full best-to-worst ranking with fewer comparisons than an all-vs-all tournament
-- Highlights your top `N` picks, with `20` as the default
-- Copies the ranked filenames so you can keep the order for posting
+- Builds an exact ranked top-`N` shortlist instead of fully sorting the GIFs you are going to cut
+- Uses fewer comparisons for the `30 choose 20` use case
+- Auto-saves the browser session on the same device so you can refresh and resume
+- Copies the keep list and cut list filenames so you can keep the order for posting
 
 ## Files
 
@@ -39,6 +40,7 @@ If you still want the browser version:
 2. Open the hosted URL on your iPhone in Safari.
 3. Use Share -> Add to Home Screen if you want it to feel app-like.
 4. Pick your GIFs from Files or Photos and start ranking.
+5. If Safari gets sluggish, refresh and use `Resume saved session`.
 
 ## Lowest-friction hosting options
 
@@ -48,6 +50,7 @@ If you still want the browser version:
 
 ## Notes
 
-- The GIF files stay local in the browser session.
-- Reloading the page clears the current ranking session.
+- The GIF files stay local in the browser.
+- The web app now targets your exact top list first, which is usually a better fit than fully ranking all 30 GIFs.
+- Saved-session restore depends on browser storage support on that device.
 - The Scriptable version avoids hosting entirely and works best if your GIFs are already in the Files app.
