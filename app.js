@@ -31,6 +31,7 @@ const elements = {
   topListCopy: document.getElementById("top-list-copy"),
   topList: document.getElementById("top-list"),
   fullList: document.getElementById("full-list"),
+  exportTopButton: document.getElementById("export-top-button"),
   copyTopButton: document.getElementById("copy-top-button"),
   copyAllButton: document.getElementById("copy-all-button")
 };
@@ -422,6 +423,24 @@ function buildListText(items) {
   return items.map((item, index) => `${index + 1}. ${item.name}`).join("\n");
 }
 
+function sanitizeFilename(name) {
+  return name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-").replace(/\s+/g, " ").trim();
+}
+
+function ensureGifExtension(name) {
+  return /\.gif$/i.test(name) ? name : `${name}.gif`;
+}
+
+function padRank(index, total) {
+  const width = Math.max(2, String(total).length);
+  return String(index + 1).padStart(width, "0");
+}
+
+function createOrderedExportName(item, index, total) {
+  const safeName = ensureGifExtension(sanitizeFilename(item.name));
+  return `${padRank(index, total)}-${safeName}`;
+}
+
 async function copyLines(text, successMessage) {
   try {
     await navigator.clipboard.writeText(text);
@@ -530,6 +549,177 @@ async function clearSavedSession() {
   elements.saveMessage.textContent = "";
 }
 
+function createCrc32Table() {
+  const table = new Uint32Array(256);
+
+  for (let index = 0; index < 256; index += 1) {
+    let current = index;
+    for (let bit = 0; bit < 8; bit += 1) {
+      current = (current & 1) === 1 ? (0xedb88320 ^ (current >>> 1)) : (current >>> 1);
+    }
+    table[index] = current >>> 0;
+  }
+
+  return table;
+}
+
+const crc32Table = createCrc32Table();
+
+function crc32(data) {
+  let crc = 0xffffffff;
+
+  for (let index = 0; index < data.length; index += 1) {
+    crc = crc32Table[(crc ^ data[index]) & 0xff] ^ (crc >>> 8);
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function dateToDosParts(date) {
+  const year = Math.max(1980, date.getFullYear());
+  const dosTime =
+    (date.getHours() << 11) |
+    (date.getMinutes() << 5) |
+    Math.floor(date.getSeconds() / 2);
+  const dosDate =
+    ((year - 1980) << 9) |
+    ((date.getMonth() + 1) << 5) |
+    date.getDate();
+
+  return { dosTime, dosDate };
+}
+
+function writeUint16(view, offset, value) {
+  view.setUint16(offset, value, true);
+}
+
+function writeUint32(view, offset, value) {
+  view.setUint32(offset, value >>> 0, true);
+}
+
+async function buildZipBlob(items) {
+  const encoder = new TextEncoder();
+  const now = new Date();
+  const { dosTime, dosDate } = dateToDosParts(now);
+  const localParts = [];
+  const centralParts = [];
+  let localOffset = 0;
+
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    const exportName = createOrderedExportName(item, index, items.length);
+    const nameBytes = encoder.encode(exportName);
+    const fileBytes = new Uint8Array(await item.file.arrayBuffer());
+    const checksum = crc32(fileBytes);
+
+    const localHeader = new ArrayBuffer(30 + nameBytes.length);
+    const localView = new DataView(localHeader);
+    writeUint32(localView, 0, 0x04034b50);
+    writeUint16(localView, 4, 20);
+    writeUint16(localView, 6, 0x0800);
+    writeUint16(localView, 8, 0);
+    writeUint16(localView, 10, dosTime);
+    writeUint16(localView, 12, dosDate);
+    writeUint32(localView, 14, checksum);
+    writeUint32(localView, 18, fileBytes.length);
+    writeUint32(localView, 22, fileBytes.length);
+    writeUint16(localView, 26, nameBytes.length);
+    writeUint16(localView, 28, 0);
+    new Uint8Array(localHeader, 30).set(nameBytes);
+
+    localParts.push(localHeader, fileBytes);
+
+    const centralHeader = new ArrayBuffer(46 + nameBytes.length);
+    const centralView = new DataView(centralHeader);
+    writeUint32(centralView, 0, 0x02014b50);
+    writeUint16(centralView, 4, 20);
+    writeUint16(centralView, 6, 20);
+    writeUint16(centralView, 8, 0x0800);
+    writeUint16(centralView, 10, 0);
+    writeUint16(centralView, 12, dosTime);
+    writeUint16(centralView, 14, dosDate);
+    writeUint32(centralView, 16, checksum);
+    writeUint32(centralView, 20, fileBytes.length);
+    writeUint32(centralView, 24, fileBytes.length);
+    writeUint16(centralView, 28, nameBytes.length);
+    writeUint16(centralView, 30, 0);
+    writeUint16(centralView, 32, 0);
+    writeUint16(centralView, 34, 0);
+    writeUint16(centralView, 36, 0);
+    writeUint32(centralView, 38, 0);
+    writeUint32(centralView, 42, localOffset);
+    new Uint8Array(centralHeader, 46).set(nameBytes);
+
+    centralParts.push(centralHeader);
+    localOffset += localHeader.byteLength + fileBytes.byteLength;
+  }
+
+  const centralDirectorySize = centralParts.reduce((sum, part) => sum + part.byteLength, 0);
+  const endRecord = new ArrayBuffer(22);
+  const endView = new DataView(endRecord);
+  writeUint32(endView, 0, 0x06054b50);
+  writeUint16(endView, 4, 0);
+  writeUint16(endView, 6, 0);
+  writeUint16(endView, 8, items.length);
+  writeUint16(endView, 10, items.length);
+  writeUint32(endView, 12, centralDirectorySize);
+  writeUint32(endView, 16, localOffset);
+  writeUint16(endView, 20, 0);
+
+  return new Blob([...localParts, ...centralParts, endRecord], { type: "application/zip" });
+}
+
+async function deliverZipBlob(blob, filename) {
+  const zipFile = new File([blob], filename, { type: "application/zip" });
+
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [zipFile] })) {
+    await navigator.share({
+      title: filename,
+      files: [zipFile]
+    });
+    return "shared";
+  }
+
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = filename;
+  link.rel = "noopener";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  return "downloaded";
+}
+
+async function exportTopGifs() {
+  if (state.leaders.length === 0) {
+    return;
+  }
+
+  const button = elements.exportTopButton;
+  const previousLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "Preparing ZIP...";
+
+  try {
+    const blob = await buildZipBlob(state.leaders);
+    const datePart = new Date().toISOString().slice(0, 10);
+    const action = await deliverZipBlob(blob, `gif-top-${state.leaders.length}-${datePart}.zip`);
+
+    if (action === "shared") {
+      elements.topListCopy.textContent = "Shared your ordered top GIFs as a ZIP with numbered filenames.";
+    } else {
+      elements.topListCopy.textContent = "Downloaded your ordered top GIFs as a ZIP with numbered filenames.";
+    }
+  } catch (error) {
+    elements.topListCopy.textContent = "Export failed on this browser. Your top list text export still works.";
+  } finally {
+    button.disabled = false;
+    button.textContent = previousLabel;
+  }
+}
+
 async function loadFiles(fileList) {
   const files = Array.from(fileList).filter((file) => file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif"));
 
@@ -631,6 +821,9 @@ elements.restartButton.addEventListener("click", () => {
   if (state.items.length > 1) {
     startRanking();
   }
+});
+elements.exportTopButton.addEventListener("click", () => {
+  exportTopGifs();
 });
 elements.copyTopButton.addEventListener("click", () => {
   copyLines(buildListText(state.leaders), `Copied your top ${state.leaders.length} list to the clipboard.`);

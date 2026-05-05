@@ -11,7 +11,8 @@ This folder now contains two iPhone-friendly versions:
 - Builds an exact ranked top-`N` shortlist instead of fully sorting the GIFs you are going to cut
 - Uses fewer comparisons for the `30 choose 20` use case
 - Auto-saves the browser session on the same device so you can refresh and resume
-- Copies the keep list and cut list filenames so you can keep the order for posting
+- Exports the top GIFs themselves as a ZIP with numbered filenames so the order stays intact
+- Copies the keep list and cut list filenames as a backup
 
 ## Files
 
@@ -52,5 +53,6 @@ If you still want the browser version:
 
 - The GIF files stay local in the browser.
 - The web app now targets your exact top list first, which is usually a better fit than fully ranking all 30 GIFs.
+- The top GIF export uses numbered filenames like `01-name.gif`, `02-name.gif`, so the order is preserved when you save or unzip it.
 - Saved-session restore depends on browser storage support on that device.
 - The Scriptable version avoids hosting entirely and works best if your GIFs are already in the Files app.
